@@ -1,75 +1,82 @@
-# House Prices — Baseline Regression Comparison
+# Telco Customer Churn - Classification Baseline
 
 ## Objective
 
-The objective of this task was to build a validated regression pipeline for predicting `SalePrice` using the cleaned Ames House Prices dataset.
+Build and evaluate Logistic Regression models for predicting customer churn and compare them with a majority-class baseline.
 
-The models were evaluated using:
-- Mean Absolute Error (MAE)
-- Root Mean Squared Error (RMSE)
-- R² Score
+## Data Preparation
 
-The dataset was split into training and testing sets before preprocessing to avoid data leakage.
+- TotalCharges was converted to numeric.
+- 11 invalid/blank TotalCharges values were removed.
+- customerID was removed.
+- Categorical variables were one-hot encoded.
+- Numerical variables were standardized.
+- Preprocessing was performed inside a scikit-learn pipeline.
 
-## Data Split
+## Train/Test Split
 
-- Training samples: 1,168
-- Testing samples: 292
-- Test size: 20%
-- Random state: 42
-
-## Preprocessing
-
-The preprocessing pipeline was implemented using `ColumnTransformer` and `Pipeline`.
-
-### Numerical Features
-- Median imputation
-- StandardScaler
-
-### Categorical Features
-- Most-frequent imputation
-- One-hot encoding
-- `handle_unknown="ignore"`
-
-All preprocessing steps were fitted only on the training data through the pipeline.
+- 80% training data
+- 20% testing data
+- Stratified split using stratify=y
 
 ## Model Comparison
 
-| Model | MAE | RMSE | R² |
-|---|---:|---:|---:|
-| Mean Baseline | 62575.93 | 87619.03 | -0.001 |
-| Linear Regression | 21103.80 | 65268.69 | 0.445 |
-| Ridge (alpha=0.1) | 18514.97 | 29122.94 | 0.889 |
-| Ridge (alpha=1) | 19138.06 | 29750.37 | 0.885 |
-| Ridge (alpha=10) | 19159.15 | 30551.70 | 0.878 |
-| Log-Target Ridge (alpha=0.1) | 15085.84 | 22823.79 | 0.932 |
+| Model | Accuracy | Precision | Recall | F1 | ROC-AUC |
+|---|---:|---:|---:|---:|---:|
+| Majority-Class Baseline | 0.7342 | 0.0000 | 0.0000 | 0.0000 | N/A |
+| Logistic Regression (Default) | 0.8038 | 0.6485 | 0.5722 | 0.6080 | 0.8359 |
+| Logistic Regression (Balanced) | 0.7257 | 0.4901 | 0.7968 | 0.6069 | 0.8351 |
 
-## Log-Target Experiment
+## Confusion Matrices
 
-A log transformation was applied to the training target using `log1p(SalePrice)`.
+### Default Logistic Regression
 
-The model predictions were converted back to the original price scale using `expm1()` before calculating the evaluation metrics.
+![Default Logistic Regression](confusion_matrix_default.png)
 
-The Log-Target Ridge model produced:
+Confusion Matrix:
 
-- MAE: 15085.84
-- RMSE: 22823.79
-- R²: 0.932
+[[917, 116],
+ [160, 214]]
 
-Compared with Ridge alpha=0.1 using the original target, the log-target experiment reduced both MAE and RMSE and increased the R² score on the test set.
+- True Negatives: 917
+- False Positives: 116
+- False Negatives: 160
+- True Positives: 214
+
+### Balanced Logistic Regression
+
+![Balanced Logistic Regression](confusion_matrix_balanced.png)
+
+Confusion Matrix:
+
+[[723, 310],
+ [76, 298]]
+
+- True Negatives: 723
+- False Positives: 310
+- False Negatives: 76
+- True Positives: 298
+
+## Business Interpretation
+
+The majority-class baseline achieves 73.42% accuracy but detects none of the actual churners, resulting in 0% recall.
+
+The default Logistic Regression achieves 80.38% accuracy, 64.85% precision, and 57.22% recall.
+
+The balanced Logistic Regression increases recall to 79.68% and reduces false negatives from 160 to 76. However, false positives increase from 116 to 310 and precision decreases to 49.01%.
+
+Because missing a churner is assumed to be more costly than generating a false alarm, the balanced model provides an operating point that prioritizes detecting more potential churners.
+
+The two Logistic Regression models have very similar F1 and ROC-AUC values, showing that class weighting mainly changes the precision-recall tradeoff.
+
+## Threshold Awareness
+
+Both models use a default classification threshold of 0.5.
+
+In a production environment, the threshold can be adjusted according to the business cost of false negatives and false positives.
 
 ## Conclusion
 
-The regression experiments show that the linear and Ridge models improved the evaluation metrics compared with the mean-prediction baseline.
+Accuracy alone is not sufficient for evaluating this imbalanced churn problem. The majority-class baseline demonstrates this clearly because it has reasonable accuracy but fails to detect churners.
 
-Ridge models were evaluated with alpha values of 0.1, 1, and 10. Among the standard Ridge models tested, alpha=0.1 produced the lowest MAE and RMSE and the highest R².
-
-The additional log-target experiment further improved the reported test-set metrics. This indicates that the log transformation of `SalePrice` was useful for this dataset.
-
-## Reproducibility
-
-The complete preprocessing and modeling workflow is available in:
-
-`regression_baseline.ipynb`
-
-The notebook contains the data split, preprocessing pipeline, mean baseline, Linear Regression, Ridge models, and log-target experiment.
+The comparison shows that default and balanced Logistic Regression provide different precision-recall tradeoffs. The appropriate configuration depends on the relative business costs of missed churners and false alarms.
